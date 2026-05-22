@@ -19,10 +19,13 @@ cmake \
 	-G Ninja \
 	-DCMAKE_C_COMPILER="$LLVM_PATH"/bin/clang \
 	-DCMAKE_CXX_COMPILER="$LLVM_PATH"/bin/clang++ \
+	-DCMAKE_C_FLAGS='-Wl,-q -fuse-ld=lld' \
+	-DCMAKE_CXX_FLAGS='-Wl,-q -fuse-ld=lld' \
+	-DCMAKE_JOB_POOLS='link_pool=6' \
+	-DCMAKE_JOB_POOL_LINK='link_pool' \
 	-C../cmake/caches/O3.cmake \
 	../ \
-	-DCMAKE_C_FLAGS='-O3 -Wl,-q -fuse-ld=lld' \
-	-DCMAKE_CXX_FLAGS='-O3 -Wl,-q -fuse-ld=lld' || exit 3
+	|| exit 3
 
 ninja || exit 3
 "$LLVM_PATH"/bin/llvm-lit -v -j "$(nproc)" -o ../results-s1.json .
