@@ -1,13 +1,22 @@
 #!/bin/bash
 
+LLVM_PATH="${1:?Usage: $0 <LLVM_PATH>}"
+BUILD_DIR=build
+
 set -u
 
-LLVM_PATH="$1"
-if [[ -z "$LLVM_PATH" ]]; then
-	echo "Usage: $0 <llvm_path>" >&2
-	exit 1
-fi
-BUILD_DIR=build
+cleanup() {
+	echo 'XXX Restoring BOLTed files...' >&2
+	while IFS='' read -r -d '' orig; do
+		f="${orig%.orig}"
+		rm -f "$f" "$f".bolt-converted 2>/dev/null || true
+		mv "$orig" "$f" 2>/dev/null || true
+	done < <(find "$BUILD_DIR" -name '*.orig' -print0 2>/dev/null)
+}
+trap cleanup EXIT
+
+cleanup
+find "$BUILD_DIR" -name '*.bolt-converted' -delete 2>/dev/null || true
 
 cmake \
 	-G Ninja \
@@ -29,11 +38,10 @@ ninja -C "$BUILD_DIR" || exit 3
 	exit 3
 }
 
-truncate --size=0 e.log
+: >e.log
 
 i=0
-while IFS='' read -r -d '' f
-do
+while IFS='' read -r -d '' f; do
 	if file "$f" | grep -F 'ELF' >/dev/null ; then
 		((i++))
 		if [ ! -e "$f".bolt-converted ]; then
@@ -58,19 +66,3 @@ do
 done < <(find "$BUILD_DIR" -type f -executable -not -name '*.orig' -not -name '*.stripped' -not -path "$BUILD_DIR/tools/*" -print0)
 
 "$LLVM_PATH"/bin/llvm-lit -sv -o results-s2.json "$BUILD_DIR"
-
-echo 'XXX Restoring BOLTed files...' >&2
-while IFS='' read -r -d '' f
-do
-	if file "$f" | grep -F 'ELF' >/dev/null ; then
-		((i++))
-		if [ -e "$f".bolt-converted ]; then
-			if [ -e "$f".orig ]; then
-				rm -f "$f" "$f".bolt-converted
-				mv "$f".orig "$f"
-			else
-				printf 'XXX Error: cannot find backup file: %s\n' "$f".orig >&2
-			fi
-		fi
-	fi
-done < <(find "$BUILD_DIR" -type f -executable -not -name '*.orig' -not -name '*.stripped' -not -path "$BUILD_DIR/tools/*" -print0)
