@@ -9,14 +9,15 @@ cleanup() {
 	echo 'XXX Restoring BOLTed files...' >&2
 	while IFS='' read -r -d '' orig; do
 		f="${orig%.orig}"
-		rm -f "$f" "$f".bolt-converted 2>/dev/null || true
+		mv "$f" "$f".bolt 2>/dev/null || true
 		mv "$orig" "$f" 2>/dev/null || true
+		rm -f "$f".bolt-converted 2>/dev/null || true
 	done < <(find "$BUILD_DIR" -name '*.orig' -print0 2>/dev/null)
 }
 trap cleanup EXIT
 
 cleanup
-find "$BUILD_DIR" -name '*.bolt-converted' -delete 2>/dev/null || true
+find "$BUILD_DIR" \( -name '*.bolt' -o -name '*.bolt-converted' \) -delete 2>/dev/null || true
 
 cmake \
 	-G Ninja \
@@ -63,6 +64,6 @@ while IFS='' read -r -d '' f; do
 			fi
 		fi
 	fi
-done < <(find "$BUILD_DIR" -type f -executable -not -name '*.orig' -not -name '*.stripped' -not -path "$BUILD_DIR/tools/*" -print0)
+done < <(find "$BUILD_DIR" -type f -executable -not \( -name '*.orig' -o -name '*.stripped' -o -name '*.bolt' -o -path "$BUILD_DIR/tools/*" \) -print0)
 
 "$LLVM_PATH"/bin/llvm-lit -sv -o results-s2.json "$BUILD_DIR"
