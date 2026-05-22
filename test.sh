@@ -11,8 +11,9 @@ fi
 
 BUILD_DIR=build
 
-rm -rf "$BUILD_DIR"
-mkdir "$BUILD_DIR" && ( cd "$BUILD_DIR" || exit 2 )
+rm -rf "$BUILD_DIR" || true
+mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR" || exit 2
 
 cmake \
 	-G Ninja \
