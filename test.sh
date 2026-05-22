@@ -39,7 +39,7 @@ do
 		if [ ! -e "$f".bolt-converted ]; then
 			printf 'XXX [%d] BOLT: %s\n' "$i" "$f" >&2
 			if [ ! -e "$f".orig ]; then
-				cp -v "$f" "$f".orig
+				cp "$f" "$f".orig
 			fi
 			if stdout=$("$LLVM_PATH"/bin/llvm-bolt \
 				"$f".orig \
