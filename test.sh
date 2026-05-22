@@ -18,8 +18,9 @@ cmake \
 	-G Ninja \
 	-DCMAKE_C_COMPILER="$LLVM_PATH"/bin/clang \
 	-DCMAKE_CXX_COMPILER="$LLVM_PATH"/bin/clang++ \
-	-DCMAKE_C_FLAGS='-Wl,-q -fuse-ld=lld' \
-	-DCMAKE_CXX_FLAGS='-Wl,-q -fuse-ld=lld' \
+	-DCMAKE_LINKER_TYPE=LLD \
+	-DCMAKE_C_FLAGS='-Wl,-q' \
+	-DCMAKE_CXX_FLAGS='-Wl,-q' \
 	-DCMAKE_JOB_POOLS='link_pool=6' \
 	-DCMAKE_JOB_POOL_LINK='link_pool' \
 	-C../cmake/caches/O3.cmake \
