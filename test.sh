@@ -66,7 +66,7 @@ do
 		((i++))
 		if [ -e "$f".bolt-converted ]; then
 			if [ -e "$f".orig ]; then
-				rm -f "$f"
+				rm -f "$f" "$f".bolt-converted
 				mv "$f".orig "$f"
 			else
 				printf 'XXX Error: cannot find backup file: %s\n' "$f".orig >&2
