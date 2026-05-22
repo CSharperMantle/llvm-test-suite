@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -u
+
 LLVM_PATH="$1"
 
 if [[ -z "$LLVM_PATH" ]]; then
@@ -13,18 +15,19 @@ rm -rf "$BUILD_DIR"
 mkdir "$BUILD_DIR" && ( cd "$BUILD_DIR" || exit 2 )
 
 cmake \
+	-G Ninja \
 	-DCMAKE_C_COMPILER="$LLVM_PATH"/bin/clang \
 	-DCMAKE_CXX_COMPILER="$LLVM_PATH"/bin/clang++ \
 	-C../cmake/caches/O3.cmake \
 	../ \
 	-DCMAKE_C_FLAGS='-O3 -Wl,-q -fuse-ld=lld' \
-	-DCMAKE_CXX_FLAGS='-O3 -Wl,-q -fuse-ld=lld'
+	-DCMAKE_CXX_FLAGS='-O3 -Wl,-q -fuse-ld=lld' || exit 3
 
-make -j"$(nproc)" VERBOSE=1
+ninja || exit 3
 "$LLVM_PATH"/bin/llvm-lit -v -j "$(nproc)" -o ../results-s1.json .
 
-cd ..
-echo "" > e.log
+cd .. || exit 2
+truncate --size=0 e.log
 
 i=0
 for f in $(find "$BUILD_DIR" -type f -executable -not -name "*.orig" -not -name "*.stripped" -not -path "$BUILD_DIR/tools/*"); do
