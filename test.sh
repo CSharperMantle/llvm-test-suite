@@ -11,8 +11,7 @@ fi
 
 BUILD_DIR=build
 
-rm -rf "$BUILD_DIR" || true
-mkdir -p "$BUILD_DIR"
+mkdir -p "$BUILD_DIR" || true
 cd "$BUILD_DIR" || exit 2
 
 cmake \
