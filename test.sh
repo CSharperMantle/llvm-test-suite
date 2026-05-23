@@ -1,9 +1,24 @@
 #!/bin/bash
 
-LLVM_PATH="${1:?Usage: $0 <LLVM_PATH>}"
-BUILD_DIR=build
-
-set -u
+LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[LINK_JOBS=...\] $0 <LLVM_PATH> \[BUILD_DIR\]}"
+BUILD_DIR="${2:-build}"
+LD="${LD:-lld}"
+case "$LD" in
+	bfd)
+		CMAKE_LD=BFD
+		;;
+	lld)
+		CMAKE_LD=LLD
+		;;
+	mold)
+		CMAKE_LD=MOLD
+		;;
+	*)
+		echo 'Error: $LD must be one of {bfd,lld,mold}' >&2
+		exit 2
+		;;
+esac
+LINK_JOBS="${LINK_JOBS:-6}"
 
 cleanup() {
 	echo 'XXX Restoring BOLTed files...' >&2
@@ -24,10 +39,10 @@ cmake \
 	-B "$BUILD_DIR" \
 	-DCMAKE_C_COMPILER="$LLVM_PATH"/bin/clang \
 	-DCMAKE_CXX_COMPILER="$LLVM_PATH"/bin/clang++ \
-	-DCMAKE_LINKER_TYPE=LLD \
-	-DCMAKE_C_FLAGS='-Wl,-q' \
-	-DCMAKE_CXX_FLAGS='-Wl,-q' \
-	-DCMAKE_JOB_POOLS='link_pool=6' \
+	-DCMAKE_LINKER_TYPE="$CMAKE_LD" \
+	-DCMAKE_C_FLAGS="-Wl,-q $CFLAGS" \
+	-DCMAKE_CXX_FLAGS="-Wl,-q $CXXFLAGS" \
+	-DCMAKE_JOB_POOLS="link_pool=$LINK_JOBS" \
 	-DCMAKE_JOB_POOL_LINK='link_pool' \
 	-C cmake/caches/O3.cmake \
 	. \
