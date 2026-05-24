@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[LINK_JOBS=...\] $0 <LLVM_PATH> \[BUILD_DIR\]}"
+LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[LINK_JOBS=...\] \[PARALLEL_JOBS=...\] $0 <LLVM_PATH> \[BUILD_DIR\]}"
 BUILD_DIR="${2:-build}"
 LD="${LD:-lld}"
 case "$LD" in
@@ -14,11 +14,14 @@ case "$LD" in
 		CMAKE_LD=MOLD
 		;;
 	*)
-		echo 'Error: $LD must be one of {bfd,lld,mold}' >&2
+		echo 'Error: LD must be one of {bfd,lld,mold}' >&2
 		exit 2
 		;;
 esac
 LINK_JOBS="${LINK_JOBS:-6}"
+PARALLEL_JOBS="${PARALLEL_JOBS:-"$(nproc)"}"
+
+export BUILD_DIR LLVM_PATH
 
 cleanup() {
 	echo 'XXX Restoring BOLTed files...' >&2
@@ -32,7 +35,7 @@ cleanup() {
 trap cleanup EXIT
 
 cleanup
-find "$BUILD_DIR" \( -name '*.bolt' -o -name '*.bolt-converted' \) -delete 2>/dev/null || true
+find "$BUILD_DIR" \( -name '*.bolt' -o -name '*.bolt-converted' -o -name '*.bolt-err' \) -delete 2>/dev/null || true
 
 cmake \
 	-G Ninja \
@@ -56,29 +59,38 @@ ninja -C "$BUILD_DIR" || exit 3
 
 : >e.log
 
-i=0
-while IFS='' read -r -d '' f; do
-	if file "$f" | grep -F 'ELF' >/dev/null ; then
-		((i++))
-		if [ ! -e "$f".bolt-converted ]; then
-			printf 'XXX [%d] BOLT: %s\n' "$i" "$f" >&2
-			if [ ! -e "$f".orig ]; then
-				cp "$f" "$f".orig
-			fi
-			if stdout=$("$LLVM_PATH"/bin/llvm-bolt \
-				"$f".orig \
-				-o "$f" \
-				-reorder-functions=hfsort \
-				-split-functions \
-				-split-all-cold 2>&1) ;
-			then
-				touch "$f".bolt-converted
-			else
-				printf 'XXX Error: %s\n%s\n\n' "$f" "$stdout" >&2
-				printf -- '--- Error: %s ---\n%s\n\n' "$f" "$stdout" >> e.log
-			fi
-		fi
+bolt_one_elf() {
+	local f="$1"
+	if ! file "$f" | grep -F 'ELF' >/dev/null 2>&1; then
+		return 0
 	fi
-done < <(find "$BUILD_DIR" -type f -executable -not \( -name '*.orig' -o -name '*.stripped' -o -name '*.bolt' -o -path "$BUILD_DIR/tools/*" \) -print0)
+	if [ -e "$f".bolt-converted ]; then
+		return 0
+	fi
+	printf 'XXX BOLT: %s\n' "$f" >&2
+	if [ ! -e "$f".orig ]; then
+		cp "$f" "$f".orig
+	fi
+	if stdout=$("$LLVM_PATH"/bin/llvm-bolt \
+		"$f".orig \
+		-o "$f" \
+		-reorder-functions=hfsort \
+		-split-functions \
+		-split-all-cold 2>&1) ;
+	then
+		touch "$f".bolt-converted
+	else
+		printf '%s\n' "$stdout" > "$f".bolt-err
+		printf 'XXX Error: %s\n' "$f" >&2
+	fi
+}
+export -f bolt_one_elf
+find "$BUILD_DIR" -type f -executable \
+	-not \( -name '*.orig' -o -name '*.stripped' -o -name '*.bolt' -o -path "$BUILD_DIR/tools/*" \) \
+	-print0 |
+	parallel -0 --line-buffer -j "$PARALLEL_JOBS" bolt_one_elf {}
+
+find "$BUILD_DIR" -name '*.bolt-err' -exec cat {} + >> e.log 2>/dev/null || true
+find "$BUILD_DIR" -name '*.bolt-err' -delete 2>/dev/null || true
 
 "$LLVM_PATH"/bin/llvm-lit -sv -o results-s2.json "$BUILD_DIR"
