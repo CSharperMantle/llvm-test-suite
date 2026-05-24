@@ -53,6 +53,14 @@
 #elif defined(__x86_64__)
 #define ARCH_X86 1
 #define ARCH_X86_64 1
+#elif defined(__loongarch__) && (__loongarch_grlen == 32)
+#define ARCH_LOONGARCH 1
+#define ARCH_LOONGARCH32 1
+#elif defined(__loongarch__) && (__loongarch_grlen == 64)
+#define ARCH_LOONGARCH 1
+#define ARCH_LOONGARCH64 1
+#define HAVE_LSX 1
+#define HAVE_LASX 1
 #endif
 
 #ifndef ARCH_AARCH64
@@ -70,15 +78,26 @@
 #ifndef ARCH_X86_64
 #define ARCH_X86_64 0
 #endif
-
 #ifndef HAVE_NEON
 #define HAVE_NEON 0
 #endif
+#ifndef ARCH_LOONGARCH
+#define ARCH_LOONGARCH 0
+#endif
+#ifndef ARCH_LOONGARCH32
+#define ARCH_LOONGARCH32 0
+#endif
+#ifndef ARCH_LOONGARCH64
+#define ARCH_LOONGARCH64 0
+#endif
+#ifndef HAVE_LSX
+#define HAVE_LSX 0
+#endif
+#ifndef HAVE_LASX
+#define HAVE_LASX 0
+#endif
 
 #define ARCH_IA64 0
-#define ARCH_LOONGARCH 0
-#define ARCH_LOONGARCH32 0
-#define ARCH_LOONGARCH64 0
 #define ARCH_M68K 0
 #define ARCH_MIPS 0
 #define ARCH_MIPS64 0
@@ -139,8 +158,6 @@
 #define HAVE_LOONGSON2 0
 #define HAVE_LOONGSON3 0
 #define HAVE_MMI 0
-#define HAVE_LSX 0
-#define HAVE_LASX 0
 #ifdef __arm__
 #define HAVE_ARMV5TE_EXTERNAL 1
 #else

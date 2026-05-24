@@ -160,6 +160,10 @@ elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQ
   if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -DPREFIX")
   endif()
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "^loongarch")
+  set(ARCH_LOONGARCH 1)
+  enable_language(ASM)
+  message(STATUS "ffmpeg: Enabling loongarch assembly")
 else()
   message(STATUS "ffmpeg: Not enabling any assembly optimizations for ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
@@ -294,6 +298,9 @@ elseif (ARCH_I386 OR ARCH_X86_64)
     list(TRANSFORM x86_nasm_sources PREPEND ${TEST_SUITE_FFMPEG_ROOT}/libavutil/)
     set_source_files_properties(${x86_nasm_sources} PROPERTIES LANGUAGE ASM_NASM)
   endif()
+elseif (ARCH_LOONGARCH)
+  list(APPEND avutil_src
+      loongarch/cpu.c)
 endif()
 if (WIN32)
   list(APPEND avutil_link bcrypt)
@@ -1607,6 +1614,75 @@ elseif (ARCH_I386 OR ARCH_X86_64)
     list(TRANSFORM x86_nasm_sources PREPEND ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/)
     set_source_files_properties(${x86_nasm_sources} PROPERTIES LANGUAGE ASM_NASM INCLUDE_DIRECTORIES ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/x86)
   endif()
+elseif (ARCH_LOONGARCH)
+  list(APPEND avcodec_src
+      loongarch/h264_cabac.c
+      loongarch/h264chroma_init_loongarch.c
+      loongarch/h264chroma.S
+      loongarch/h264_deblock_lasx.c
+      loongarch/h264dsp_init_loongarch.c
+      loongarch/h264dsp_lasx.c
+      loongarch/h264dsp.S
+      loongarch/h264idct_loongarch.c
+      loongarch/h264idct.S
+      loongarch/h264_intrapred_init_loongarch.c
+      loongarch/h264intrapred.S
+      loongarch/h264qpel_init_loongarch.c
+      loongarch/h264qpel_lasx.c
+      loongarch/h264qpel_lsx.c
+      loongarch/h264qpel.S
+      loongarch/hevcdsp_init_loongarch.c
+      loongarch/hevcdsp_lsx.c
+      loongarch/hevc_add_res.S
+      loongarch/hevc_idct_lsx.c
+      loongarch/hevc_idct.S
+      loongarch/hevc_lpf_sao_lsx.c
+      loongarch/hevc_mc_bi_lsx.c
+      loongarch/hevc_mc_uni_lsx.c
+      loongarch/hevc_mc_uniw_lsx.c
+      loongarch/hevc_mc.S
+      loongarch/hpeldsp_init_loongarch.c
+      loongarch/hpeldsp_lasx.c
+      loongarch/idctdsp_init_loongarch.c
+      loongarch/idctdsp_lasx.c
+      loongarch/simple_idct_lasx.c
+      loongarch/vc1dsp_init_loongarch.c
+      loongarch/vc1dsp_lasx.c
+      loongarch/videodsp_init.c
+      loongarch/vp8dsp_init_loongarch.c
+      loongarch/vp8_lpf_lsx.c
+      loongarch/vp8_mc_lsx.c
+      loongarch/vp9dsp_init_loongarch.c
+      loongarch/vp9_idct_lsx.c
+      loongarch/vp9_intra_lsx.c
+      loongarch/vp9_lpf_lsx.c
+      loongarch/vp9_mc_lsx.c)
+  set_source_files_properties(
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/h264_deblock_lasx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/h264dsp_lasx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/h264qpel_lasx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/hpeldsp_lasx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/idctdsp_lasx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/simple_idct_lasx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/vc1dsp_lasx.c
+      PROPERTIES COMPILE_FLAGS "-mlasx"
+  )
+  set_source_files_properties(
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/h264qpel_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/hevcdsp_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/hevc_idct_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/hevc_lpf_sao_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/hevc_mc_bi_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/hevc_mc_uni_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/hevc_mc_uniw_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/vp8_lpf_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/vp8_mc_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/vp9_idct_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/vp9_intra_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/vp9_lpf_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/loongarch/vp9_mc_lsx.c
+      PROPERTIES COMPILE_FLAGS "-mlsx"
+  )
 endif()
 list(TRANSFORM avcodec_src PREPEND ${TEST_SUITE_FFMPEG_ROOT}/libavcodec/)
 llvm_test_library(avcodec ${avcodec_src})
@@ -2226,6 +2302,36 @@ elseif (ARCH_I386 OR ARCH_X86_64)
     list(TRANSFORM x86_nasm_sources PREPEND ${TEST_SUITE_FFMPEG_ROOT}/libswscale/)
     set_source_files_properties(${x86_nasm_sources} PROPERTIES LANGUAGE ASM_NASM)
   endif()
+elseif (ARCH_LOONGARCH)
+  list(APPEND swscale_src
+      loongarch/swscale_init_loongarch.c
+      loongarch/swscale_lasx.c
+      loongarch/swscale_lsx.c
+      loongarch/swscale.S
+      loongarch/input_lasx.c
+      loongarch/input_lsx.c
+      loongarch/input.S
+      loongarch/output_lasx.c
+      loongarch/output_lsx.c
+      loongarch/output.S
+      loongarch/rgb2rgb_lasx.c
+      loongarch/yuv2rgb_lasx.c
+      loongarch/yuv2rgb_lsx.c)
+  set_source_files_properties(
+      ${TEST_SUITE_FFMPEG_ROOT}/libswscale/loongarch/swscale_lasx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libswscale/loongarch/input_lasx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libswscale/loongarch/output_lasx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libswscale/loongarch/rgb2rgb_lasx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libswscale/loongarch/yuv2rgb_lasx.c
+      PROPERTIES COMPILE_FLAGS "-mlasx"
+  )
+  set_source_files_properties(
+      ${TEST_SUITE_FFMPEG_ROOT}/libswscale/loongarch/swscale_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libswscale/loongarch/input_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libswscale/loongarch/output_lsx.c
+      ${TEST_SUITE_FFMPEG_ROOT}/libswscale/loongarch/yuv2rgb_lsx.c
+      PROPERTIES COMPILE_FLAGS "-mlsx"
+  )
 endif()
 list(TRANSFORM swscale_src PREPEND ${TEST_SUITE_FFMPEG_ROOT}/libswscale/)
 llvm_test_library(swscale ${swscale_src})
