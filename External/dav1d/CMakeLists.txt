@@ -128,6 +128,10 @@ elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQ
   if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -DPREFIX")
   endif()
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "^loongarch")
+  set(ARCH_LOONGARCH 1)
+  enable_language(ASM)
+  message(STATUS "dav1d: Enabling loongarch assembly")
 else()
   message(STATUS "dav1d: Not enabling any assembly optimizations for ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
@@ -223,6 +227,19 @@ elseif (ARCH_ARM)
       arm/32/loopfilter16.S
       arm/32/looprestoration16.S
       arm/32/mc16.S)
+elseif (ARCH_LOONGARCH)
+  list(APPEND dav1d_src
+      loongarch/cpu.c
+      loongarch/cdef.S
+      loongarch/ipred.S
+      loongarch/itx.S
+      loongarch/mc.S
+      loongarch/msac.S
+      loongarch/refmvs.S
+      loongarch/loopfilter.S
+      loongarch/looprestoration.S)
+  list(APPEND dav1d_tmpl_src
+      loongarch/looprestoration_tmpl.c)
 elseif (ARCH_I386 OR ARCH_X86_64)
   list(APPEND dav1d_src
       x86/cpu.c)
@@ -345,6 +362,9 @@ if (ARCH_AARCH64)
 elseif (ARCH_ARM)
   list(APPEND checkasm_src
       arm/checkasm_32.S)
+elseif (ARCH_LOONGARCH)
+  list(APPEND checkasm_src
+      loongarch/checkasm.S)
 elseif (ARCH_I386 OR ARCH_X86_64)
   if (CMAKE_ASM_NASM_COMPILER)
     set(x86_nasm_sources

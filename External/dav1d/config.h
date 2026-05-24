@@ -15,6 +15,12 @@
 #elif defined(__x86_64__) && !defined(NO_X86ASM)
 #define ARCH_X86 1
 #define ARCH_X86_64 1
+#elif defined(__loongarch__) && (__loongarch_grlen == 32)
+#define ARCH_LOONGARCH 1
+#define ARCH_LOONGARCH32 1
+#elif defined(__loongarch__) && (__loongarch_grlen == 64)
+#define ARCH_LOONGARCH 1
+#define ARCH_LOONGARCH64 1
 #endif
 
 #ifndef ARCH_AARCH64
@@ -32,12 +38,15 @@
 #ifndef ARCH_X86_64
 #define ARCH_X86_64 0
 #endif
-
+#ifndef ARCH_LOONGARCH
 #define ARCH_LOONGARCH 0
-
+#endif
+#ifndef ARCH_LOONGARCH32
 #define ARCH_LOONGARCH32 0
-
+#endif
+#ifndef ARCH_LOONGARCH64
 #define ARCH_LOONGARCH64 0
+#endif
 
 #define ARCH_PPC64LE 0
 
