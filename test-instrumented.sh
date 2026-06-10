@@ -4,19 +4,19 @@ LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[LINK_JOBS=...\] \[PARALLEL_JOBS
 BUILD_DIR="${2:-build}"
 LD="${LD:-lld}"
 case "$LD" in
-	bfd)
-		CMAKE_LD=BFD
-		;;
-	lld)
-		CMAKE_LD=LLD
-		;;
-	mold)
-		CMAKE_LD=MOLD
-		;;
-	*)
-		echo 'Error: LD must be one of {bfd,lld,mold}' >&2
-		exit 2
-		;;
+bfd)
+	CMAKE_LD=BFD
+	;;
+lld)
+	CMAKE_LD=LLD
+	;;
+mold)
+	CMAKE_LD=MOLD
+	;;
+*)
+	echo 'Error: LD must be one of {bfd,lld,mold}' >&2
+	exit 2
+	;;
 esac
 LINK_JOBS="${LINK_JOBS:-6}"
 PARALLEL_JOBS="${PARALLEL_JOBS:-"$(nproc)"}"
@@ -48,8 +48,8 @@ cmake \
 	-DCMAKE_JOB_POOLS="link_pool=$LINK_JOBS" \
 	-DCMAKE_JOB_POOL_LINK='link_pool' \
 	-C cmake/caches/O3.cmake \
-	. \
-	|| exit 3
+	. ||
+	exit 3
 ninja -C "$BUILD_DIR" || exit 3
 
 "$LLVM_PATH"/bin/llvm-lit -sv -o results-s1.json "$BUILD_DIR" || {
