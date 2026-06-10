@@ -79,7 +79,7 @@ bolt_one_elf() {
 		-split-all-cold 2>&1); then
 		touch "$f".bolt-converted
 	else
-		printf '%s\n' "$stdout" >"$f".bolt-err
+		printf 'XXX BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
 		printf 'XXX Error: %s\n' "$f" >&2
 	fi
 }
@@ -89,7 +89,7 @@ find "$BUILD_DIR" -type f -executable \
 	-print0 |
 	parallel -0 --line-buffer -j "$PARALLEL_JOBS" bolt_one_elf {}
 
-find "$BUILD_DIR" -name '*.bolt-err' -exec cat {} + >>e.log 2>/dev/null || true
+find "$BUILD_DIR" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || true
 find "$BUILD_DIR" -name '*.bolt-err' -delete 2>/dev/null || true
 
 "$LLVM_PATH"/bin/llvm-lit -sv -o results-s2.json "$BUILD_DIR"

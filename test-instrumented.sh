@@ -79,7 +79,7 @@ instrument_elf() {
 		-o "$f" 2>&1); then
 		touch "$f".bolt-instr
 	else
-		printf '%s\n' "$stdout" >"$f".bolt-err
+		printf 'XXX INSTRUMENT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
 		printf 'XXX Error: instrumentation failed for %s\n' "$f" >&2
 		cp "$f".orig "$f"
 	fi
@@ -129,7 +129,7 @@ bolt_with_profile() {
 		--dyno-stats 2>&1); then
 		touch "$f".bolt-converted
 	else
-		printf '%s\n' "$stdout" >"$f".bolt-err
+		printf 'XXX BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
 		printf 'XXX Error: %s\n' "$f" >&2
 	fi
 }
@@ -139,7 +139,7 @@ find "$BUILD_DIR" -type f -executable \
 	-print0 |
 	parallel -0 --line-buffer -j "$PARALLEL_JOBS" bolt_with_profile {}
 
-find "$BUILD_DIR" -name '*.bolt-err' -exec cat {} + >>e.log 2>/dev/null || true
+find "$BUILD_DIR" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || true
 find "$BUILD_DIR" -name '*.bolt-err' -delete 2>/dev/null || true
 
 "$LLVM_PATH"/bin/llvm-lit -sv -o results-s2.json "$BUILD_DIR"
