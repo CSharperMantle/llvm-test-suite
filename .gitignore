@@ -6,5 +6,6 @@
 .cache
 
 /results-s[12].json
+/results-instr.json
 /e.log
 .gdb_history
