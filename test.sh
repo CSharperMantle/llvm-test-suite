@@ -35,7 +35,7 @@ cleanup() {
 trap cleanup EXIT
 
 cleanup
-find "$BUILD_DIR" \( -name '*.bolt' -o -name '*.bolt-converted' -o -name '*.bolt-err' \) -delete 2>/dev/null || true
+find "$BUILD_DIR" \( -name '*.bolt' -o -name '*.bolt-*' \) -delete 2>/dev/null || true
 
 cmake \
 	-G Ninja \
@@ -71,12 +71,12 @@ bolt_one_elf() {
 	if [ ! -e "$f".orig ]; then
 		cp "$f" "$f".orig
 	fi
-	if stdout=$("$LLVM_PATH"/bin/llvm-bolt \
+	if stdout="$("$LLVM_PATH"/bin/llvm-bolt \
 		"$f".orig \
 		-o "$f" \
 		-reorder-functions=hfsort \
 		-split-functions \
-		-split-all-cold 2>&1); then
+		-split-all-cold 2>&1)"; then
 		touch "$f".bolt-converted
 	else
 		printf 'XXX BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err

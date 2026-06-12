@@ -35,7 +35,7 @@ cleanup() {
 trap cleanup EXIT
 
 cleanup
-find "$BUILD_DIR" \( -name '*.bolt' -o -name '*.bolt-converted' -o -name '*.bolt-err' -o -name '*.bolt-instr' -o -name '*.prof.fdata*' \) -delete 2>/dev/null || true
+find "$BUILD_DIR" \( -name '*.bolt' -o -name '*.bolt-*' -o -name '*.prof.fdata*' \) -delete 2>/dev/null || true
 
 cmake \
 	-G Ninja \
@@ -71,16 +71,16 @@ instrument_elf() {
 	if [ ! -e "$f".orig ]; then
 		cp "$f" "$f".orig
 	fi
-	if stdout=$("$LLVM_PATH"/bin/llvm-bolt \
+	if stdout="$("$LLVM_PATH"/bin/llvm-bolt \
 		"$f".orig \
 		--instrument \
 		--instrumentation-file="$(realpath "$f")".prof.fdata \
 		--instrumentation-file-append-pid \
-		-o "$f" 2>&1); then
+		-o "$f" 2>&1)"; then
 		touch "$f".bolt-instr
 	else
 		printf 'XXX INSTRUMENT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
-		printf 'XXX Error: instrumentation failed for %s\n' "$f" >&2
+		printf 'XXX Error: bolt --instrument: %s\n' "$f" >&2
 		cp "$f".orig "$f"
 	fi
 }
@@ -106,14 +106,15 @@ bolt_with_profile() {
 		printf 'XXX Error: %s was not instrumented, skipping\n' "$f" >&2
 		return 0
 	fi
-	"$LLVM_PATH"/bin/merge-fdata "$f".prof.fdata.* -o "$f".prof.fdata 2>&1 || true
-	if [ ! -s "$f".prof.fdata ]; then
-		printf 'XXX Error: %s has no profile data\n' "$f" >&2
-		printf 'XXX No profile data\n' >"$f".bolt-err
+	if stdout="$("$LLVM_PATH"/bin/merge-fdata "$f".prof.fdata.* -o "$f".prof.fdata 2>&1)"; then
+		touch "$f".bolt-fdata-merged
+	else
+		printf 'XXX MERGE-FDATA: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
+		printf 'XXX Error: merge-fdata: %s\n' "$f" >&2
 		return 0
 	fi
 	printf 'XXX BOLT: %s\n' "$f" >&2
-	if stdout=$("$LLVM_PATH"/bin/llvm-bolt \
+	if stdout="$("$LLVM_PATH"/bin/llvm-bolt \
 		"$f".orig \
 		-o "$f" \
 		--data "$f".prof.fdata \
@@ -126,7 +127,7 @@ bolt_with_profile() {
 		--simplify-rodata-loads \
 		--peepholes=all \
 		--hugify \
-		--dyno-stats 2>&1); then
+		--dyno-stats 2>&1)"; then
 		touch "$f".bolt-converted
 	else
 		printf 'XXX BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
