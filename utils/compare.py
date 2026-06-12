@@ -333,13 +333,14 @@ def print_result(
     absolute_diff=False,
     lhs_name="lhs",
     rhs_name="rhs",
-    only_significant=False
+    only_significant=False,
+    sort_ascending=False
 ):
     metrics = d.columns.levels[0]
     if sort_by_abs:
-        d = d.sort_values(by=(metrics[0], sortkey), key=pd.Series.abs, ascending=False)
+        d = d.sort_values(by=(metrics[0], sortkey), key=pd.Series.abs, ascending=sort_ascending)
     else:
-        d = d.sort_values(by=(metrics[0], sortkey), ascending=False)
+        d = d.sort_values(by=(metrics[0], sortkey), ascending=sort_ascending)
 
     if only_significant:
         if (metrics[0], 'significant') in d.columns:
@@ -516,6 +517,13 @@ def main():
         help="Don't use abs() when sorting results",
     )
     parser.add_argument(
+        "--sort-ascending",
+        action="store_true",
+        dest="sort_ascending",
+        default=False,
+        help="Sort results in ascending order (default: descending)",
+    )
+    parser.add_argument(
         "--statistics",
         action="store_true",
         dest="statistics",
@@ -688,6 +696,7 @@ def main():
         config.lhs_name,
         config.rhs_name,
         config.only_significant,
+        config.sort_ascending,
     )
 
 
