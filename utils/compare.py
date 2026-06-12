@@ -159,6 +159,8 @@ def add_diff_column(metric, values, absolute_diff=False):
         values[(metric, "diff")] = values1 - values0
     else:
         values[(metric, "diff")] = (values1 / values0) - 1.0
+    values[(metric, "diff")] = values[(metric, "diff")].replace(
+        [float('inf'), -float('inf')], float('nan'))
     return values
 
 
@@ -251,6 +253,12 @@ def filter_same_hash(data, key="hash"):
 
 def filter_blacklist(data, blacklist):
     return data.loc[~(data.index.get_level_values(1).isin(blacklist))]
+
+
+def filter_zero(data, metric):
+    """Filter out tests where the metric value is 0 in all runs."""
+    return data.groupby(level=1).filter(
+        lambda g: not (g[metric] == 0).all())
 
 
 def print_filter_stats(reason, before, after):
@@ -438,6 +446,13 @@ def main():
     )
     parser.add_argument("--filter-blacklist", dest="filter_blacklist", default=None)
     parser.add_argument(
+        "--filter-zero",
+        action="store_true",
+        dest="filter_zero",
+        default=False,
+        help="Filter out tests where the metric value is 0 in all runs",
+    )
+    parser.add_argument(
         "--merge-average",
         action="store_const",
         dest="merge_function",
@@ -610,6 +625,10 @@ def main():
         blacklist = [line.strip() for line in blacklist]
         newdata = filter_blacklist(data, blacklist)
         print_filter_stats("In Blacklist", data, newdata)
+        data = newdata
+    if config.filter_zero:
+        newdata = filter_zero(data, metrics[0])
+        print_filter_stats("Zero", data, newdata)
         data = newdata
     final_size = len(data.groupby(level=1))
     if final_size != initial_size:

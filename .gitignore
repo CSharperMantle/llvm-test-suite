@@ -9,3 +9,5 @@
 /results-instr.json
 /e.log
 .gdb_history
+
+.venv/
