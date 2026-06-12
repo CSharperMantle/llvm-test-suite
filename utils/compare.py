@@ -269,6 +269,12 @@ def filter_zero(data, metric):
         lambda g: not (g[metric] == 0).all())
 
 
+def filter_small(data, metric, threshold):
+    """Filter out tests where the absolute metric value is below threshold in all runs."""
+    return data.groupby(level=1).filter(
+        lambda g: not (g[metric].abs() < threshold).all())
+
+
 def print_filter_stats(reason, before, after):
     n_before = len(before.groupby(level=1))
     n_after = len(after.groupby(level=1))
@@ -468,6 +474,14 @@ def main():
         help="Filter out tests where the metric value is 0 in all runs",
     )
     parser.add_argument(
+        "--filter-small",
+        type=float,
+        dest="filter_small",
+        default=None,
+        help="Filter out tests where the metric value is below THRESHOLD in all runs",
+        metavar="THRESHOLD",
+    )
+    parser.add_argument(
         "--merge-average",
         action="store_const",
         dest="merge_function",
@@ -657,6 +671,10 @@ def main():
     if config.filter_zero:
         newdata = filter_zero(data, metrics[0])
         print_filter_stats("Zero", data, newdata)
+        data = newdata
+    if config.filter_small is not None:
+        newdata = filter_small(data, metrics[0], config.filter_small)
+        print_filter_stats("Small", data, newdata)
         data = newdata
     final_size = len(data.groupby(level=1))
     if final_size != initial_size:
