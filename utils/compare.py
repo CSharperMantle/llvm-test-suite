@@ -255,6 +255,14 @@ def filter_blacklist(data, blacklist):
     return data.loc[~(data.index.get_level_values(1).isin(blacklist))]
 
 
+def filter_blacklist_regex(data, blacklist):
+    """Filter out tests whose names match any regex pattern in blacklist."""
+    compiled = [re.compile(p) for p in blacklist]
+    names = data.index.get_level_values(1)
+    mask = [not any(c.search(name) for c in compiled) for name in names]
+    return data.loc[mask]
+
+
 def filter_zero(data, metric):
     """Filter out tests where the metric value is 0 in all runs."""
     return data.groupby(level=1).filter(
@@ -446,6 +454,12 @@ def main():
     )
     parser.add_argument("--filter-blacklist", dest="filter_blacklist", default=None)
     parser.add_argument(
+        "--filter-blacklist-regex",
+        dest="filter_blacklist_regex",
+        default=None,
+        help="Like --filter-blacklist, but each line is a regex",
+    )
+    parser.add_argument(
         "--filter-zero",
         action="store_true",
         dest="filter_zero",
@@ -625,6 +639,12 @@ def main():
         blacklist = [line.strip() for line in blacklist]
         newdata = filter_blacklist(data, blacklist)
         print_filter_stats("In Blacklist", data, newdata)
+        data = newdata
+    if config.filter_blacklist_regex:
+        blacklist = open(config.filter_blacklist_regex).readlines()
+        blacklist = [line.strip() for line in blacklist if line.strip()]
+        newdata = filter_blacklist_regex(data, blacklist)
+        print_filter_stats("In Blacklist (regex)", data, newdata)
         data = newdata
     if config.filter_zero:
         newdata = filter_zero(data, metrics[0])
