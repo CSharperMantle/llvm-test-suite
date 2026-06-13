@@ -36,6 +36,7 @@ trap cleanup EXIT
 
 cleanup
 find "$BUILD_DIR" \( -name '*.bolt' -o -name '*.bolt-*' \) -delete 2>/dev/null || true
+rm -f results-*.json e.log || true
 
 cmake \
 	-G Ninja \
@@ -56,8 +57,6 @@ ninja -C "$BUILD_DIR" || exit 3
 	echo 'XXX Error: baseline tests failed; see results-s1.json' >&2
 	exit 3
 }
-
-: >e.log
 
 bolt_one_elf() {
 	local f="$1"
