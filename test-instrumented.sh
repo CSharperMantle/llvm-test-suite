@@ -36,7 +36,7 @@ trap cleanup EXIT
 
 cleanup
 find "$BUILD_DIR" \( -name '*.bolt' -o -name '*.bolt-*' -o -name '*.prof.fdata*' \) -delete 2>/dev/null || true
-rm -f results-*.json e.log || true
+rm -f results-*.json e.log o.log || true
 
 cmake \
 	-G Ninja \
@@ -77,6 +77,7 @@ instrument_elf() {
 		--instrumentation-file-append-pid \
 		-o "$f" 2>&1)"; then
 		touch "$f".bolt-instr
+		printf 'XXX INSTRUMENT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-out
 	else
 		printf 'XXX INSTRUMENT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
 		printf 'XXX Error: bolt --instrument: %s\n' "$f" >&2
@@ -130,6 +131,7 @@ bolt_with_profile() {
 		--huge-page-size="$(numfmt --from=auto '32Mi')" \
 		--dyno-stats 2>&1)"; then
 		touch "$f".bolt-converted
+		printf 'XXX BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-out
 	else
 		printf 'XXX BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
 		printf 'XXX Error: %s\n' "$f" >&2
@@ -142,6 +144,7 @@ find "$BUILD_DIR" -type f -executable \
 	parallel -0 --line-buffer -j "$PARALLEL_JOBS" bolt_with_profile {}
 
 find "$BUILD_DIR" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || true
-find "$BUILD_DIR" -name '*.bolt-err' -delete 2>/dev/null || true
+find "$BUILD_DIR" -name '*.bolt-out' -exec cat {} + >o.log 2>/dev/null || true
+find "$BUILD_DIR" -name '*.bolt-err' -name '*.bolt-out' -delete 2>/dev/null || true
 
 "$LLVM_PATH"/bin/llvm-lit -sv -o results-s2.json "$BUILD_DIR"
