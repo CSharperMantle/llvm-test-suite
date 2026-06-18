@@ -123,9 +123,11 @@ bolt_with_profile() {
 		--split-functions \
 		--icp=all \
 		--indirect-call-promotion=all \
+		--plt=hot \
 		--simplify-rodata-loads \
 		--peepholes=all \
 		--hugify \
+		--huge-page-size="$(numfmt --from=auto '32Mi')" \
 		--dyno-stats 2>&1)"; then
 		touch "$f".bolt-converted
 	else
