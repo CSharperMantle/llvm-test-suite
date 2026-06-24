@@ -126,6 +126,7 @@ bolt_with_profile() {
 		--indirect-call-promotion=all \
 		--plt=hot \
 		--simplify-rodata-loads \
+		--frame-opt=all \
 		--peepholes=all \
 		--hugify \
 		--huge-page-size="$(numfmt --from=auto '32Mi')" \
