@@ -7,7 +7,7 @@
 
 /results-s[12].json
 /results-instr.json
-/e.log
+/*.log
 .gdb_history
 
 .venv/
