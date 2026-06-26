@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2329
 
 LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[LINK_JOBS=...\] \[PARALLEL_JOBS=...\] $0 <LLVM_PATH> \[BUILD_DIR\]}"
 BUILD_DIR="${2:-build}"
@@ -24,7 +25,7 @@ PARALLEL_JOBS="${PARALLEL_JOBS:-"$(nproc)"}"
 export BUILD_DIR LLVM_PATH
 
 cleanup() {
-	echo 'XXX Restoring BOLTed files...' >&2
+	echo 'XXX I harness: Restoring BOLTed files...' >&2
 	while IFS='' read -r -d '' orig; do
 		f="${orig%.orig}"
 		mv "$f" "$f".bolt 2>/dev/null || true
@@ -53,10 +54,8 @@ cmake \
 	exit 3
 ninja -C "$BUILD_DIR" || exit 3
 
-"$LLVM_PATH"/bin/llvm-lit -sv -o results-s1.json "$BUILD_DIR" || {
-	echo 'XXX Error: baseline tests failed; see results-s1.json' >&2
-	exit 3
-}
+"$LLVM_PATH"/bin/llvm-lit -sv -o results-s1.json "$BUILD_DIR"
+s1_rc=$?
 
 bolt_one_elf() {
 	local f="$1"
@@ -66,7 +65,7 @@ bolt_one_elf() {
 	if [ -e "$f".bolt-converted ]; then
 		return 0
 	fi
-	printf 'XXX BOLT: %s\n' "$f" >&2
+	printf 'XXX I BOLT: %s\n' "$f" >&2
 	if [ ! -e "$f".orig ]; then
 		cp "$f" "$f".orig
 	fi
@@ -78,8 +77,8 @@ bolt_one_elf() {
 		-split-all-cold 2>&1)"; then
 		touch "$f".bolt-converted
 	else
-		printf 'XXX BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
-		printf 'XXX Error: %s\n' "$f" >&2
+		printf 'XXX E BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
+		printf 'XXX E BOLT: %s\n' "$f" >&2
 	fi
 }
 export -f bolt_one_elf
@@ -92,3 +91,31 @@ find "$BUILD_DIR" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || true
 find "$BUILD_DIR" -name '*.bolt-err' -delete 2>/dev/null || true
 
 "$LLVM_PATH"/bin/llvm-lit -sv -o results-s2.json "$BUILD_DIR"
+s2_rc=$?
+
+printf -- '---\n'
+printf -- '\n'
+printf -- 'Test Results\n'
+printf -- '============\n'
+printf -- '\n'
+printf -- '\n'
+printf -- 'Lit-tests\n'
+printf -- '---------\n'
+printf -- '\n'
+printf -- '\t%s\tBaseline\n' "$([ $s1_rc -eq 0 ] && echo PASS || echo FAIL)"
+printf -- '\t%s\tBOLT\n' "$([ $s2_rc -eq 0 ] && echo PASS || echo FAIL)"
+printf -- '\n'
+printf -- '\n'
+printf -- 'Notable entries in e.log\n'
+printf -- '------------------------\n'
+printf -- '\n'
+if [ -s e.log ]; then
+	grep -E '^XXX (W|E) (harness|BOLT|INSTRUMENT):' e.log |
+		while IFS= read -r line; do
+			printf '\t%s\n' "$line"
+		done
+fi
+printf -- '\n'
+printf -- '---\n'
+
+exit "$((s1_rc | s2_rc))"

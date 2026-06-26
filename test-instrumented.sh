@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2329
 
 LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[LINK_JOBS=...\] \[PARALLEL_JOBS=...\] $0 <LLVM_PATH> \[BUILD_DIR\]}"
 BUILD_DIR="${2:-build}"
@@ -24,7 +25,7 @@ PARALLEL_JOBS="${PARALLEL_JOBS:-"$(nproc)"}"
 export BUILD_DIR LLVM_PATH
 
 cleanup() {
-	echo 'XXX Restoring BOLTed files...' >&2
+	echo 'XXX I harness: Restoring BOLTed files...' >&2
 	while IFS='' read -r -d '' orig; do
 		f="${orig%.orig}"
 		mv "$f" "$f".bolt 2>/dev/null || true
@@ -53,10 +54,8 @@ cmake \
 	exit 3
 ninja -C "$BUILD_DIR" || exit 3
 
-"$LLVM_PATH"/bin/llvm-lit -sv -o results-s1.json "$BUILD_DIR" || {
-	echo 'XXX Error: baseline tests failed; see results-s1.json' >&2
-	exit 3
-}
+"$LLVM_PATH"/bin/llvm-lit -sv -o results-s1.json "$BUILD_DIR"
+s1_rc=$?
 
 instrument_elf() {
 	local f="$1"
@@ -66,7 +65,7 @@ instrument_elf() {
 	if [ -e "$f".bolt-converted ]; then
 		return 0
 	fi
-	printf 'XXX INSTRUMENT: %s\n' "$f" >&2
+	printf 'XXX I INSTRUMENT: %s\n' "$f" >&2
 	if [ ! -e "$f".orig ]; then
 		cp "$f" "$f".orig
 	fi
@@ -77,10 +76,10 @@ instrument_elf() {
 		--instrumentation-file-append-pid \
 		-o "$f" 2>&1)"; then
 		touch "$f".bolt-instr
-		printf 'XXX INSTRUMENT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-out
+		printf 'XXX I INSTRUMENT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-out
 	else
-		printf 'XXX INSTRUMENT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
-		printf 'XXX Error: bolt --instrument: %s\n' "$f" >&2
+		printf 'XXX E INSTRUMENT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
+		printf 'XXX E INSTRUMENT: %s\n' "$f" >&2
 		cp "$f".orig "$f"
 	fi
 }
@@ -90,9 +89,8 @@ find "$BUILD_DIR" -type f -executable \
 	-print0 |
 	parallel -0 --line-buffer -j "$PARALLEL_JOBS" instrument_elf {}
 
-if ! "$LLVM_PATH"/bin/llvm-lit -sv -o results-instr.json "$BUILD_DIR"; then
-	echo 'XXX Warning: instrumented tests had failures; see results-instr.json' >&2
-fi
+"$LLVM_PATH"/bin/llvm-lit -sv -o results-instr.json "$BUILD_DIR"
+instr_rc=$?
 
 bolt_with_profile() {
 	local f="$1"
@@ -103,17 +101,17 @@ bolt_with_profile() {
 		return 0
 	fi
 	if [ ! -e "$f".bolt-instr ]; then
-		printf 'XXX Error: %s was not instrumented, skipping\n' "$f" >&2
+		printf 'XXX W harness: %s was not instrumented, skipping\n' "$f" >&2
 		return 0
 	fi
 	if stdout="$("$LLVM_PATH"/bin/merge-fdata "$f".prof.fdata.* -o "$f".prof.fdata 2>&1)"; then
 		touch "$f".bolt-fdata-merged
 	else
-		printf 'XXX MERGE-FDATA: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
-		printf 'XXX Error: merge-fdata: %s\n' "$f" >&2
+		printf 'XXX E MERGE-FDATA: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
+		printf 'XXX E MERGE-FDATA: %s\n' "$f" >&2
 		return 0
 	fi
-	printf 'XXX BOLT: %s\n' "$f" >&2
+	printf 'XXX I BOLT: %s\n' "$f" >&2
 	if stdout="$("$LLVM_PATH"/bin/llvm-bolt \
 		"$f".orig \
 		-o "$f" \
@@ -132,10 +130,10 @@ bolt_with_profile() {
 		--huge-page-size="$(numfmt --from=auto '32Mi')" \
 		--dyno-stats 2>&1)"; then
 		touch "$f".bolt-converted
-		printf 'XXX BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-out
+		printf 'XXX I BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-out
 	else
-		printf 'XXX BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
-		printf 'XXX Error: %s\n' "$f" >&2
+		printf 'XXX E BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
+		printf 'XXX E BOLT: %s\n' "$f" >&2
 	fi
 }
 export -f bolt_with_profile
@@ -146,6 +144,35 @@ find "$BUILD_DIR" -type f -executable \
 
 find "$BUILD_DIR" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || true
 find "$BUILD_DIR" -name '*.bolt-out' -exec cat {} + >o.log 2>/dev/null || true
-find "$BUILD_DIR" -name '*.bolt-err' -name '*.bolt-out' -delete 2>/dev/null || true
+find "$BUILD_DIR" \( -name '*.bolt-err' -o -name '*.bolt-out' \) -delete 2>/dev/null || true
 
 "$LLVM_PATH"/bin/llvm-lit -sv -o results-s2.json "$BUILD_DIR"
+s2_rc=$?
+
+printf -- '---\n'
+printf -- '\n'
+printf -- 'Test Results\n'
+printf -- '============\n'
+printf -- '\n'
+printf -- '\n'
+printf -- 'Lit-tests\n'
+printf -- '---------\n'
+printf -- '\n'
+printf -- '\t%s\tBaseline\n' "$([ $s1_rc -eq 0 ] && echo PASS || echo FAIL)"
+printf -- '\t%s\tInstrument\n' "$([ $instr_rc -eq 0 ] && echo PASS || echo FAIL)"
+printf -- '\t%s\tBOLT\n' "$([ $s2_rc -eq 0 ] && echo PASS || echo FAIL)"
+printf -- '\n'
+printf -- '\n'
+printf -- 'Notable entries in e.log\n'
+printf -- '------------------------\n'
+printf -- '\n'
+if [ -s e.log ]; then
+	grep -E '^XXX (W|E) (harness|BOLT|INSTRUMENT):' e.log |
+		while IFS= read -r line; do
+			printf '\t%s\n' "$line"
+		done
+fi
+printf -- '\n'
+printf -- '---\n'
+
+exit "$((s1_rc | instr_rc | s2_rc))"
