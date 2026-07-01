@@ -72,6 +72,7 @@ instrument_elf() {
 	if stdout="$("$LLVM_PATH"/bin/llvm-bolt \
 		"$f".orig \
 		--instrument \
+		--instrument-load-profiles \
 		--instrumentation-file="$(realpath "$f")".prof.fdata \
 		--instrumentation-file-append-pid \
 		-o "$f" 2>&1)"; then
