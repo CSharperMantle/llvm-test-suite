@@ -31,13 +31,13 @@ cleanup() {
 		f="${orig%.orig}"
 		mv "$f" "$f".bolt 2>/dev/null || true
 		mv "$orig" "$f" 2>/dev/null || true
-		rm -f "$f".bolt-* "$f".prof.fdata* 2>/dev/null || true
+		rm -f "$f".bolt-* 2>/dev/null || true
 	done < <(find "$BUILD_DIR" -name '*.orig' -print0 2>/dev/null)
 }
 trap cleanup EXIT
 
 cleanup
-find "$BUILD_DIR" \( -name '*.bolt' -o -name '*.bolt-*' \) -delete 2>/dev/null || true
+find "$BUILD_DIR" \( -name '*.bolt' -o -name '*.bolt-*' -o -name '*.prof.fdata*' \) -delete 2>/dev/null || true
 rm -f results-*.json e.log || true
 
 cmake \
