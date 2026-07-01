@@ -1,5 +1,6 @@
 #!/bin/bash
 # shellcheck disable=SC2329
+# vim: set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab:
 
 LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[LINK_JOBS=...\] \[PARALLEL_JOBS=...\] $0 <LLVM_PATH> \[BUILD_DIR\]}"
 BUILD_DIR="${2:-build}"
