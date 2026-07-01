@@ -123,7 +123,7 @@ bolt_with_profile() {
 		--split-strategy=profile2 \
 		--split-functions \
 		--icp=all \
-		--indirect-call-promotion=all \
+		--icp-jump-tables-targets \
 		--plt=hot \
 		--simplify-rodata-loads \
 		--frame-opt=all \
