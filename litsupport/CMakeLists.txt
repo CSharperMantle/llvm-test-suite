@@ -11,6 +11,7 @@ set(LITSUPPORT_FILES
   modules/compiletime.py
   modules/hash.py
   modules/hpmcount.py
+  modules/hyperfine.py
   modules/__init__.py
   modules/microbenchmark.py
   modules/perf.py

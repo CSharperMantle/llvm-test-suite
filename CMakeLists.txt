@@ -423,6 +423,12 @@ if(TEST_SUITE_COLLECT_STATS)
   list(APPEND LIT_MODULES stats)
 endif()
 
+find_program(HYPERFINE NAMES "hyperfine")
+if(HYPERFINE)
+  message(STATUS "Found hyperfine: ${HYPERFINE}")
+  list(APPEND LIT_MODULES hyperfine)
+endif()                                          
+
 # Produce lit.site.cfg
 configure_file("${PROJECT_SOURCE_DIR}/lit.site.cfg.in" "${CMAKE_BINARY_DIR}/lit.site.cfg")
 
