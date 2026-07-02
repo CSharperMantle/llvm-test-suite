@@ -2,7 +2,7 @@
 # shellcheck disable=SC2329
 # vim: set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab:
 
-LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[LINK_JOBS=...\] \[PARALLEL_JOBS=...\] $0 <LLVM_PATH> \[BUILD_DIR\]}"
+LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[LINK_JOBS=...\] \[PARALLEL_JOBS=...\] \[PROFILE_RUNS=...\] $0 <LLVM_PATH> \[BUILD_DIR\]}"
 BUILD_DIR="${2:-build}"
 LD="${LD:-lld}"
 case "$LD" in
@@ -22,6 +22,7 @@ mold)
 esac
 LINK_JOBS="${LINK_JOBS:-6}"
 PARALLEL_JOBS="${PARALLEL_JOBS:-"$(nproc)"}"
+PROFILE_RUNS="${PROFILE_RUNS:-10}"
 
 PERF_TESTS=(
 	"$BUILD_DIR"/MultiSource/Applications
@@ -106,8 +107,12 @@ find "$BUILD_DIR" -type f -executable \
 	-print0 |
 	parallel -0 --line-buffer -j "$PARALLEL_JOBS" instrument_elf {}
 
-"$LLVM_PATH"/bin/llvm-lit -sv -o results-instr.json "${PERF_TESTS[@]}"
-instr_rc=$?
+instr_rc=0
+for i in $(seq 1 "$PROFILE_RUNS"); do
+	printf 'XXX I harness: Instrumented (profiled) run: %d of %d\n' "$i" "$PROFILE_RUNS" >&2
+	"$LLVM_PATH"/bin/llvm-lit -q -o "results-instr-$i.json" "${PERF_TESTS[@]}"
+	instr_rc="$((instr_rc | $?))"
+done
 
 bolt_with_profile() {
 	local f="$1"
