@@ -36,6 +36,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
+_handle_signal() {
+	trap '' INT TERM
+	echo 'XXX I harness: Interrupt received, killing children...' >&2
+	kill -- -"$$" 2>/dev/null || true
+	exit $((128 + $1))
+}
+trap '_handle_signal $(kill -l INT)' INT
+trap '_handle_signal $(kill -l TERM)' TERM
+
 cleanup
 find "$BUILD_DIR" \( -name '*.bolt' -o -name '*.bolt-*' -o -name '*.prof.fdata*' \) -delete 2>/dev/null || true
 rm -f results-*.json e.log || true
