@@ -23,6 +23,12 @@ esac
 LINK_JOBS="${LINK_JOBS:-6}"
 PARALLEL_JOBS="${PARALLEL_JOBS:-"$(nproc)"}"
 
+PERF_TESTS=(
+	"$BUILD_DIR"/MultiSource/Applications
+	"$BUILD_DIR"/MultiSource/Benchmarks
+	"$BUILD_DIR"/SingleSource/Benchmarks
+)
+
 export BUILD_DIR LLVM_PATH
 
 cleanup() {
@@ -64,7 +70,7 @@ cmake \
 	exit 3
 ninja -C "$BUILD_DIR" || exit 3
 
-"$LLVM_PATH"/bin/llvm-lit --param timing=hyperfine -sv -o results-s1.json "$BUILD_DIR"
+"$LLVM_PATH"/bin/llvm-lit --param timing=hyperfine -sv -o results-s1.json "${PERF_TESTS[@]}"
 s1_rc=$?
 
 instrument_elf() {
@@ -100,7 +106,7 @@ find "$BUILD_DIR" -type f -executable \
 	-print0 |
 	parallel -0 --line-buffer -j "$PARALLEL_JOBS" instrument_elf {}
 
-"$LLVM_PATH"/bin/llvm-lit -sv -o results-instr.json "$BUILD_DIR"
+"$LLVM_PATH"/bin/llvm-lit -sv -o results-instr.json "${PERF_TESTS[@]}"
 instr_rc=$?
 
 bolt_with_profile() {
@@ -157,7 +163,7 @@ find "$BUILD_DIR" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || true
 find "$BUILD_DIR" -name '*.bolt-out' -exec cat {} + >o.log 2>/dev/null || true
 find "$BUILD_DIR" \( -name '*.bolt-err' -o -name '*.bolt-out' \) -delete 2>/dev/null || true
 
-"$LLVM_PATH"/bin/llvm-lit --param timing=hyperfine -sv -o results-s2.json "$BUILD_DIR"
+"$LLVM_PATH"/bin/llvm-lit --param timing=hyperfine -sv -o results-s2.json "${PERF_TESTS[@]}"
 s2_rc=$?
 
 printf -- '---\n'
