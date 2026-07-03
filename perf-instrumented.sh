@@ -110,7 +110,7 @@ find "$BUILD_DIR" -type f -executable \
 instr_rc=0
 for i in $(seq 1 "$PROFILE_RUNS"); do
 	printf 'XXX I harness: Instrumented (profiled) run: %d of %d\n' "$i" "$PROFILE_RUNS" >&2
-	"$LLVM_PATH"/bin/llvm-lit -q -o "results-instr-$i.json" "${PERF_TESTS[@]}"
+	"$LLVM_PATH"/bin/llvm-lit -q --progress-bar -o "results-instr-$i.json" "${PERF_TESTS[@]}"
 	instr_rc="$((instr_rc | $?))"
 done
 
