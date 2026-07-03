@@ -102,8 +102,14 @@ instrument_elf() {
 	fi
 }
 export -f instrument_elf
-find "$BUILD_DIR" -type f -executable \
-	-not \( -name '*.orig' -o -name '*.stripped' -o -name '*.bolt' -o -path "$BUILD_DIR/tools/*" \) \
+find "${PERF_TESTS[@]}" -type f -executable \
+	-not \( \
+		-name '*.orig' \
+		-o -name '*.stripped' \
+		-o -name '*.bolt' \
+		-o -path "$BUILD_DIR/tools/*" \
+		-o -path "$BUILD_DIR/CMakeFiles/*" \
+	\) \
 	-print0 |
 	parallel -0 --line-buffer -j "$PARALLEL_JOBS" instrument_elf {}
 
@@ -160,14 +166,20 @@ bolt_with_profile() {
 	fi
 }
 export -f bolt_with_profile
-find "$BUILD_DIR" -type f -executable \
-	-not \( -name '*.orig' -o -name '*.stripped' -o -name '*.bolt' -o -path "$BUILD_DIR/tools/*" \) \
+find "${PERF_TESTS[@]}" -type f -executable \
+	-not \( \
+		-name '*.orig' \
+		-o -name '*.stripped' \
+		-o -name '*.bolt' \
+		-o -path "$BUILD_DIR/tools/*" \
+		-o -path "$BUILD_DIR/CMakeFiles/*" \
+	\) \
 	-print0 |
 	parallel -0 --line-buffer -j "$PARALLEL_JOBS" bolt_with_profile {}
 
-find "$BUILD_DIR" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || true
-find "$BUILD_DIR" -name '*.bolt-out' -exec cat {} + >o.log 2>/dev/null || true
-find "$BUILD_DIR" \( -name '*.bolt-err' -o -name '*.bolt-out' \) -delete 2>/dev/null || true
+find "${PERF_TESTS[@]}" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || true
+find "${PERF_TESTS[@]}" -name '*.bolt-out' -exec cat {} + >o.log 2>/dev/null || true
+find "${PERF_TESTS[@]}" \( -name '*.bolt-err' -o -name '*.bolt-out' \) -delete 2>/dev/null || true
 
 "$LLVM_PATH"/bin/llvm-lit --param timing=hyperfine -sv -o results-s2.json "${PERF_TESTS[@]}"
 s2_rc=$?

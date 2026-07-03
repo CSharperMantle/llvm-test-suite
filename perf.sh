@@ -98,13 +98,19 @@ bolt_one_elf() {
 	fi
 }
 export -f bolt_one_elf
-find "$BUILD_DIR" -type f -executable \
-	-not \( -name '*.orig' -o -name '*.stripped' -o -name '*.bolt' -o -path "$BUILD_DIR/tools/*" \) \
+find "${PERF_TESTS[@]}" -type f -executable \
+	-not \( \
+		-name '*.orig' \
+		-o -name '*.stripped' \
+		-o -name '*.bolt' \
+		-o -path "$BUILD_DIR/tools/*" \
+		-o -path "$BUILD_DIR/CMakeFiles/*" \
+	\) \
 	-print0 |
 	parallel -0 --line-buffer -j "$PARALLEL_JOBS" bolt_one_elf {}
 
-find "$BUILD_DIR" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || true
-find "$BUILD_DIR" -name '*.bolt-err' -delete 2>/dev/null || true
+find "${PERF_TESTS[@]}" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || true
+find "${PERF_TESTS[@]}" -name '*.bolt-err' -delete 2>/dev/null || true
 
 "$LLVM_PATH"/bin/llvm-lit --param timing=hyperfine -sv -o results-s2.json "${PERF_TESTS[@]}"
 s2_rc=$?

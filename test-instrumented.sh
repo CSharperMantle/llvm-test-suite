@@ -96,7 +96,13 @@ instrument_elf() {
 }
 export -f instrument_elf
 find "$BUILD_DIR" -type f -executable \
-	-not \( -name '*.orig' -o -name '*.stripped' -o -name '*.bolt' -o -path "$BUILD_DIR/tools/*" \) \
+	-not \( \
+		-name '*.orig' \
+		-o -name '*.stripped' \
+		-o -name '*.bolt' \
+		-o -path "$BUILD_DIR/tools/*" \
+		-o -path "$BUILD_DIR/CMakeFiles/*" \
+	\) \
 	-print0 |
 	parallel -0 --line-buffer -j "$PARALLEL_JOBS" instrument_elf {}
 
@@ -150,7 +156,13 @@ bolt_with_profile() {
 }
 export -f bolt_with_profile
 find "$BUILD_DIR" -type f -executable \
-	-not \( -name '*.orig' -o -name '*.stripped' -o -name '*.bolt' -o -path "$BUILD_DIR/tools/*" \) \
+	-not \( \
+		-name '*.orig' \
+		-o -name '*.stripped' \
+		-o -name '*.bolt' \
+		-o -path "$BUILD_DIR/tools/*" \
+		-o -path "$BUILD_DIR/CMakeFiles/*" \
+	\) \
 	-print0 |
 	parallel -0 --line-buffer -j "$PARALLEL_JOBS" bolt_with_profile {}
 
