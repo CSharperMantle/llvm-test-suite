@@ -22,7 +22,7 @@ mold)
 esac
 LINK_JOBS="${LINK_JOBS:-6}"
 PARALLEL_JOBS="${PARALLEL_JOBS:-"$(nproc)"}"
-PROFILE_RUNS="${PROFILE_RUNS:-10}"
+PROFILE_RUNS="${PROFILE_RUNS:-3}"
 
 PERF_TESTS=(
 	"$BUILD_DIR"/MultiSource/Applications
