@@ -136,6 +136,7 @@ bolt_with_profile() {
 		--plt=hot \
 		--simplify-rodata-loads \
 		--frame-opt=all \
+		--experimental-shrink-wrapping \
 		--peepholes=all \
 		--hugify \
 		--huge-page-size="$(numfmt --from=auto '32Mi')" \
