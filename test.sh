@@ -64,7 +64,7 @@ cmake \
 	exit 3
 ninja -C "$BUILD_DIR" || exit 3
 
-"$LLVM_PATH"/bin/llvm-lit -sv -o results-s1.json "$BUILD_DIR"
+"$LLVM_PATH"/bin/llvm-lit -j "$PARALLEL_JOBS" -sv -o results-s1.json "$BUILD_DIR"
 s1_rc=$?
 
 bolt_one_elf() {
@@ -106,7 +106,7 @@ find "$BUILD_DIR" -type f -executable \
 find "$BUILD_DIR" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || true
 find "$BUILD_DIR" -name '*.bolt-err' -delete 2>/dev/null || true
 
-"$LLVM_PATH"/bin/llvm-lit -sv -o results-s2.json "$BUILD_DIR"
+"$LLVM_PATH"/bin/llvm-lit -j "$PARALLEL_JOBS" -sv -o results-s2.json "$BUILD_DIR"
 s2_rc=$?
 
 printf -- '---\n'

@@ -64,7 +64,7 @@ cmake \
 	exit 3
 ninja -C "$BUILD_DIR" || exit 3
 
-"$LLVM_PATH"/bin/llvm-lit -sv -o results-s1.json "$BUILD_DIR"
+"$LLVM_PATH"/bin/llvm-lit -j "$PARALLEL_JOBS" -sv -o results-s1.json "$BUILD_DIR"
 s1_rc=$?
 
 instrument_elf() {
@@ -106,7 +106,7 @@ find "$BUILD_DIR" -type f -executable \
 	-print0 |
 	parallel -0 --line-buffer -j "$PARALLEL_JOBS" instrument_elf {}
 
-"$LLVM_PATH"/bin/llvm-lit -sv -o results-instr.json "$BUILD_DIR"
+"$LLVM_PATH"/bin/llvm-lit -j "$PARALLEL_JOBS" -sv -o results-instr.json "$BUILD_DIR"
 instr_rc=$?
 
 bolt_with_profile() {
@@ -170,7 +170,7 @@ find "$BUILD_DIR" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || true
 find "$BUILD_DIR" -name '*.bolt-out' -exec cat {} + >o.log 2>/dev/null || true
 find "$BUILD_DIR" \( -name '*.bolt-err' -o -name '*.bolt-out' \) -delete 2>/dev/null || true
 
-"$LLVM_PATH"/bin/llvm-lit -sv -o results-s2.json "$BUILD_DIR"
+"$LLVM_PATH"/bin/llvm-lit -j "$PARALLEL_JOBS" -sv -o results-s2.json "$BUILD_DIR"
 s2_rc=$?
 
 printf -- '---\n'

@@ -96,7 +96,7 @@ cmake \
 	exit 3
 ninja -C "$BUILD_DIR" || exit 3
 
-"$LLVM_PATH"/bin/llvm-lit --param timing=hyperfine -sv -o results-s1.json "${PERF_TESTS[@]}"
+"$LLVM_PATH"/bin/llvm-lit -j "$PARALLEL_JOBS" --param timing=hyperfine -sv -o results-s1.json "${PERF_TESTS[@]}"
 s1_rc=$?
 
 instrument_elf() {
@@ -141,7 +141,7 @@ find "${PERF_TESTS[@]}" -type f -executable \
 instr_rc=0
 for i in $(seq 1 "$PROFILE_RUNS"); do
 	printf 'XXX I harness: Instrumented (profiled) run: %d of %d\n' "$i" "$PROFILE_RUNS" >&2
-	"$LLVM_PATH"/bin/llvm-lit -q --progress-bar -o "results-instr-$i.json" "${PERF_TESTS[@]}"
+	"$LLVM_PATH"/bin/llvm-lit -j "$PARALLEL_JOBS" -q --progress-bar -o "results-instr-$i.json" "${PERF_TESTS[@]}"
 	instr_rc="$((instr_rc | $?))"
 done
 
@@ -206,7 +206,7 @@ find "${PERF_TESTS[@]}" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || 
 find "${PERF_TESTS[@]}" -name '*.bolt-out' -exec cat {} + >o.log 2>/dev/null || true
 find "${PERF_TESTS[@]}" \( -name '*.bolt-err' -o -name '*.bolt-out' \) -delete 2>/dev/null || true
 
-"$LLVM_PATH"/bin/llvm-lit --param timing=hyperfine -sv -o results-s2.json "${PERF_TESTS[@]}"
+"$LLVM_PATH"/bin/llvm-lit -j "$PARALLEL_JOBS" --param timing=hyperfine -sv -o results-s2.json "${PERF_TESTS[@]}"
 s2_rc=$?
 
 printf -- '---\n'
