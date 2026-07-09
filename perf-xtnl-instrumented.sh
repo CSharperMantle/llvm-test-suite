@@ -2,7 +2,7 @@
 # shellcheck disable=SC2329
 # vim: set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab:
 
-LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[LINK_JOBS=...\] \[PARALLEL_JOBS=...\] \[PROFILE_RUNS=...\] $0 <LLVM_PATH> \[BUILD_DIR\]}"
+LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[BUILD_JOBS=...\] \[LINK_JOBS=...\] \[RUN_JOBS=...\] \[BOLT_JOBS=...\] \[PROFILE_JOBS=...\] \[PROFILE_RUNS=...\] $0 <LLVM_PATH> \[BUILD_DIR\]}"
 BUILD_DIR="${2:-build}"
 LD="${LD:-lld}"
 case "$LD" in
@@ -20,8 +20,11 @@ mold)
 	exit 2
 	;;
 esac
+BUILD_JOBS="${BUILD_JOBS:-"$(nproc)"}"
 LINK_JOBS="${LINK_JOBS:-6}"
-PARALLEL_JOBS="${PARALLEL_JOBS:-"$(nproc)"}"
+RUN_JOBS="${RUN_JOBS:-1}"
+BOLT_JOBS="${BOLT_JOBS:-"$BUILD_JOBS"}"
+PROFILE_JOBS="${PROFILE_JOBS:-"$(($(nproc) / 4))"}"
 PROFILE_RUNS="${PROFILE_RUNS:-3}"
 
 PERF_TESTS=(
@@ -94,9 +97,9 @@ cmake \
 	-C cmake/caches/O3.cmake \
 	. ||
 	exit 3
-ninja -C "$BUILD_DIR" || exit 3
+ninja -j "$BUILD_JOBS" -C "$BUILD_DIR" || exit 3
 
-"$LLVM_PATH"/bin/llvm-lit -j "$PARALLEL_JOBS" --param timing=hyperfine -sv -o results-s1.json "${PERF_TESTS[@]}"
+"$LLVM_PATH"/bin/llvm-lit -j "$RUN_JOBS" --param timing=hyperfine -sv -o results-s1.json "${PERF_TESTS[@]}"
 s1_rc=$?
 
 instrument_elf() {
@@ -136,12 +139,12 @@ find "${PERF_TESTS[@]}" -type f -executable \
 		-o -path "$BUILD_DIR/CMakeFiles/*" \
 	\) \
 	-print0 |
-	parallel -0 --line-buffer -j "$PARALLEL_JOBS" instrument_elf {}
+	parallel -0 --line-buffer -j "$BOLT_JOBS" instrument_elf {}
 
 instr_rc=0
 for i in $(seq 1 "$PROFILE_RUNS"); do
 	printf 'XXX I harness: Instrumented (profiled) run: %d of %d\n' "$i" "$PROFILE_RUNS" >&2
-	"$LLVM_PATH"/bin/llvm-lit -j "$PARALLEL_JOBS" -q --progress-bar -o "results-instr-$i.json" "${PERF_TESTS[@]}"
+	"$LLVM_PATH"/bin/llvm-lit -j "$PROFILE_JOBS" -q --progress-bar -o "results-instr-$i.json" "${PERF_TESTS[@]}"
 	instr_rc="$((instr_rc | $?))"
 done
 
@@ -200,13 +203,13 @@ find "${PERF_TESTS[@]}" -type f -executable \
 		-o -path "$BUILD_DIR/CMakeFiles/*" \
 	\) \
 	-print0 |
-	parallel -0 --line-buffer -j "$PARALLEL_JOBS" bolt_with_profile {}
+	parallel -0 --line-buffer -j "$BOLT_JOBS" bolt_with_profile {}
 
 find "${PERF_TESTS[@]}" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || true
 find "${PERF_TESTS[@]}" -name '*.bolt-out' -exec cat {} + >o.log 2>/dev/null || true
 find "${PERF_TESTS[@]}" \( -name '*.bolt-err' -o -name '*.bolt-out' \) -delete 2>/dev/null || true
 
-"$LLVM_PATH"/bin/llvm-lit -j "$PARALLEL_JOBS" --param timing=hyperfine -sv -o results-s2.json "${PERF_TESTS[@]}"
+"$LLVM_PATH"/bin/llvm-lit -j "$RUN_JOBS" --param timing=hyperfine -sv -o results-s2.json "${PERF_TESTS[@]}"
 s2_rc=$?
 
 printf -- '---\n'

@@ -2,7 +2,7 @@
 # shellcheck disable=SC2329
 # vim: set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab:
 
-LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[LINK_JOBS=...\] \[PARALLEL_JOBS=...\] $0 <LLVM_PATH> \[BUILD_DIR\]}"
+LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[BUILD_JOBS=...\] \[LINK_JOBS=...\] \[RUN_JOBS=...\] \[BOLT_JOBS=...\] $0 <LLVM_PATH> \[BUILD_DIR\]}"
 BUILD_DIR="${2:-build}"
 LD="${LD:-lld}"
 case "$LD" in
@@ -20,8 +20,10 @@ mold)
 	exit 2
 	;;
 esac
+BUILD_JOBS="${BUILD_JOBS:-"$(nproc)"}"
 LINK_JOBS="${LINK_JOBS:-6}"
-PARALLEL_JOBS="${PARALLEL_JOBS:-"$(nproc)"}"
+RUN_JOBS="${RUN_JOBS:-1}"
+BOLT_JOBS="${BOLT_JOBS:-"$BUILD_JOBS"}"
 
 PERF_TESTS=(
 	"$BUILD_DIR"/MultiSource/Applications
@@ -68,9 +70,9 @@ cmake \
 	-C cmake/caches/O3.cmake \
 	. ||
 	exit 3
-ninja -C "$BUILD_DIR" || exit 3
+ninja -j "$BUILD_JOBS" -C "$BUILD_DIR" || exit 3
 
-"$LLVM_PATH"/bin/llvm-lit -j "$PARALLEL_JOBS" --param timing=hyperfine -sv -o results-s1.json "${PERF_TESTS[@]}"
+"$LLVM_PATH"/bin/llvm-lit -j "$RUN_JOBS" --param timing=hyperfine -sv -o results-s1.json "${PERF_TESTS[@]}"
 s1_rc=$?
 
 bolt_one_elf() {
@@ -107,12 +109,12 @@ find "${PERF_TESTS[@]}" -type f -executable \
 		-o -path "$BUILD_DIR/CMakeFiles/*" \
 	\) \
 	-print0 |
-	parallel -0 --line-buffer -j "$PARALLEL_JOBS" bolt_one_elf {}
+	parallel -0 --line-buffer -j "$BOLT_JOBS" bolt_one_elf {}
 
 find "${PERF_TESTS[@]}" -name '*.bolt-err' -exec cat {} + >e.log 2>/dev/null || true
 find "${PERF_TESTS[@]}" -name '*.bolt-err' -delete 2>/dev/null || true
 
-"$LLVM_PATH"/bin/llvm-lit -j "$PARALLEL_JOBS" --param timing=hyperfine -sv -o results-s2.json "${PERF_TESTS[@]}"
+"$LLVM_PATH"/bin/llvm-lit -j "$RUN_JOBS" --param timing=hyperfine -sv -o results-s2.json "${PERF_TESTS[@]}"
 s2_rc=$?
 
 printf -- '---\n'
