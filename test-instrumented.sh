@@ -90,9 +90,9 @@ instrument_elf() {
 		--instrumentation-file-append-pid \
 		-o "$f" 2>&1)"; then
 		touch "$f".bolt-instr
-		printf 'XXX I INSTRUMENT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-out
+		printf 'XXX I INSTRUMENT: %s\n%s\n' "$f" "$stdout" >>"$f".bolt-out
 	else
-		printf 'XXX E INSTRUMENT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
+		printf 'XXX E INSTRUMENT: %s\n%s\n' "$f" "$stdout" >>"$f".bolt-err
 		printf 'XXX E INSTRUMENT: %s\n' "$f" >&2
 		cp "$f".orig "$f"
 	fi
@@ -127,7 +127,7 @@ bolt_with_profile() {
 	if stdout="$("$LLVM_PATH"/bin/merge-fdata "$f".prof.fdata.* -o "$f".prof.fdata 2>&1)"; then
 		touch "$f".bolt-fdata-merged
 	else
-		printf 'XXX E MERGE-FDATA: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
+		printf 'XXX E MERGE-FDATA: %s\n%s\n' "$f" "$stdout" >>"$f".bolt-err
 		printf 'XXX E MERGE-FDATA: %s\n' "$f" >&2
 		return 0
 	fi
@@ -152,9 +152,9 @@ bolt_with_profile() {
 		--icf=safe \
 		--dyno-stats 2>&1)"; then
 		touch "$f".bolt-converted
-		printf 'XXX I BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-out
+		printf 'XXX I BOLT: %s\n%s\n' "$f" "$stdout" >>"$f".bolt-out
 	else
-		printf 'XXX E BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err
+		printf 'XXX E BOLT: %s\n%s\n' "$f" "$stdout" >>"$f".bolt-err
 		printf 'XXX E BOLT: %s\n' "$f" >&2
 	fi
 }
