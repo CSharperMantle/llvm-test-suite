@@ -185,6 +185,7 @@ bolt_with_profile() {
 		--peepholes=all \
 		--hugify \
 		--huge-page-size="$(numfmt --from=auto '32Mi')" \
+		--icf=safe \
 		--dyno-stats 2>&1)"; then
 		touch "$f".bolt-converted
 		printf 'XXX I BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-out
