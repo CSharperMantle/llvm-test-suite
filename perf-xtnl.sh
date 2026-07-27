@@ -101,6 +101,8 @@ ninja -j "$BUILD_JOBS" -C "$BUILD_DIR" || exit 3
 s1_rc=$?
 
 bolt_one_elf() {
+	. ./source-bolt-flags.sh
+
 	local f="$1"
 	if ! file "$f" | grep -F 'ELF' >/dev/null 2>&1; then
 		return 0
@@ -115,9 +117,7 @@ bolt_one_elf() {
 	if stdout="$("$LLVM_PATH"/bin/llvm-bolt \
 		"$f".orig \
 		-o "$f" \
-		-reorder-functions=hfsort \
-		-split-functions \
-		-split-all-cold 2>&1)"; then
+		"${BOLT_SMOKE_FLAGS[@]}" 2>&1)"; then
 		touch "$f".bolt-converted
 	else
 		printf 'XXX E BOLT: %s\n%s\n' "$f" "$stdout" >"$f".bolt-err

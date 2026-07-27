@@ -103,6 +103,8 @@ ninja -j "$BUILD_JOBS" -C "$BUILD_DIR" || exit 3
 s1_rc=$?
 
 instrument_elf() {
+	. ./source-bolt-flags.sh
+
 	local f="$1"
 	if ! file "$f" | grep -F 'ELF' >/dev/null 2>&1; then
 		return 0
@@ -116,10 +118,8 @@ instrument_elf() {
 	fi
 	if stdout="$("$LLVM_PATH"/bin/llvm-bolt \
 		"$f".orig \
-		--instrument \
-		--instrument-load-profiles \
+		"${BOLT_INSTRUMENT_FLAGS[@]}" \
 		--instrumentation-file="$(realpath "$f")".prof.fdata \
-		--instrumentation-file-append-pid \
 		-o "$f" 2>&1)"; then
 		touch "$f".bolt-instr
 		printf 'XXX I INSTRUMENT: %s\n%s\n' "$f" "$stdout" >>"$f".bolt-out
@@ -149,6 +149,8 @@ for i in $(seq 1 "$PROFILE_RUNS"); do
 done
 
 bolt_with_profile() {
+	. ./source-bolt-flags.sh
+
 	local f="$1"
 	if ! file "$f" | grep -F 'ELF' >/dev/null 2>&1; then
 		return 0
@@ -172,21 +174,7 @@ bolt_with_profile() {
 		"$f".orig \
 		-o "$f" \
 		--data "$f".prof.fdata \
-		--reorder-functions=cdsort \
-		--reorder-blocks=ext-tsp \
-		--split-strategy=profile2 \
-		--split-functions \
-		--icp=all \
-		--icp-jump-tables-targets \
-		--plt=hot \
-		--simplify-rodata-loads \
-		--frame-opt=all \
-		--experimental-shrink-wrapping \
-		--peepholes=all \
-		--hugify \
-		--huge-page-size="$(numfmt --from=auto '32Mi')" \
-		--icf=safe \
-		--dyno-stats 2>&1)"; then
+		"${BOLT_FULL_FLAGS[@]}" 2>&1)"; then
 		touch "$f".bolt-converted
 		printf 'XXX I BOLT: %s\n%s\n' "$f" "$stdout" >>"$f".bolt-out
 	else
