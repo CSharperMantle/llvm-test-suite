@@ -29,6 +29,7 @@ BOLT_FULL_FLAGS=(
 	'--plt=hot'
 	'--simplify-rodata-loads'
 	'--frame-opt=all'
+	'--frame-opt-rm-stores'
 	'--experimental-shrink-wrapping'
 	'--peepholes=all'
 	'--hugify'
