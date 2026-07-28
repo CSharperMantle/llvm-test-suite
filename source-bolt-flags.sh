@@ -34,6 +34,7 @@ BOLT_FULL_FLAGS=(
 	'--peepholes=all'
 	'--hugify'
 	"--huge-page-size=$(numfmt --from=auto '32Mi')"
+	"--align-text=$(numfmt --from=auto '2Mi')"
 	'--icf=safe'
 	'--dyno-stats'
 )
