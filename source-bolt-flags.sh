@@ -26,7 +26,6 @@ BOLT_FULL_FLAGS=(
 	'--split-functions'
 	'--icp=all'
 	'--icp-jump-tables-targets'
-	'--plt=hot'
 	'--simplify-rodata-loads'
 	'--frame-opt=all'
 	'--frame-opt-rm-stores'
