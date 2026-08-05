@@ -25,6 +25,8 @@ BOLT_FULL_FLAGS=(
 	'--reorder-blocks=ext-tsp'
 	'--split-strategy=profile2'
 	'--split-functions'
+	'--align-hot-loop-headers'
+	'--hot-loop-alignment=32'
 	'--icp=all'
 	'--icp-jump-tables-targets'
 	'--simplify-rodata-loads'
