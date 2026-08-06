@@ -27,6 +27,7 @@ BOLT_FULL_FLAGS=(
 	'--split-functions'
 	'--align-hot-loop-headers'
 	'--hot-loop-alignment=32'
+	'--hot-loop-alignment-max-bytes=32'
 	'--icp=all'
 	'--icp-jump-tables-targets'
 	'--simplify-rodata-loads'
