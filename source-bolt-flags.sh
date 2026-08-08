@@ -1,6 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2034
 # vim: set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab:
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
 	printf 'Error: %s must be sourced, not executed.\n' "${BASH_SOURCE[0]}" >&2
