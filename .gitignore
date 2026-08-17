@@ -5,8 +5,8 @@
 /build*
 .cache
 
-/results-s[12].json
-/results-instr*.json
+/results-*
+/logs-*
 /*.log
 .gdb_history
 
