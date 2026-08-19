@@ -3,10 +3,11 @@
 # vim: set tabstop=8 shiftwidth=8 softtabstop=8 noexpandtab:
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[BUILD_JOBS=...\] \[LINK_JOBS=...\] \[RUN_JOBS=...\] \[WARMUP_RUNS=...\] \[BENCH_RUNS=...\] \[FRONTEND_RUNS=...\] \[BENCH_CPU=...\] \[RESULT_DIR=...\] $0 <LLVM_SOURCE_ROOT> \[ARTIFACT_ROOT\]}"
+LLVM_PATH="${1:?Usage: \[LD=\{bfd,lld,mold\}\] \[BASIC=\{0,1\}\] \[BUILD_JOBS=...\] \[LINK_JOBS=...\] \[RUN_JOBS=...\] \[WARMUP_RUNS=...\] \[BENCH_RUNS=...\] \[FRONTEND_RUNS=...\] \[BENCH_CPU=...\] \[RESULT_DIR=...\] $0 <LLVM_SOURCE_ROOT> \[ARTIFACT_ROOT\]}"
 ARTIFACT_ROOT="${2:-"$LLVM_PATH"}"
 
 LD="${LD:-lld}"
+BASIC="${BASIC:-0}"
 case "$LD" in
 bfd | lld | mold)
 	;;
@@ -649,8 +650,10 @@ rm -f -- \
 	"$stage1_perf_csv" "$stage4_vanilla_perf_csv" "$stage4_bolt_perf_csv" \
 	"$e_log"
 mkdir -p \
-	"$log_dir" "$command_dir" "$hyperfine_dir" "$primary_dir" \
-	"$frontend_dir" "$merge_dir" || exit 2
+	"$log_dir" "$command_dir" "$hyperfine_dir" "$merge_dir" || exit 2
+if [ "$BASIC" != 1 ]; then
+	mkdir -p "$primary_dir" "$frontend_dir" || exit 2
+fi
 : >"$e_log"
 
 for key in "${stage_keys[@]}"; do
@@ -666,9 +669,11 @@ csv_row "$profile_csv" kind count bytes lines sha256 path
 csv_row "$stage1_csv" "${timing_columns[@]}"
 csv_row "$stage4_vanilla_csv" "${timing_columns[@]}"
 csv_row "$stage4_bolt_csv" "${timing_columns[@]}"
-csv_row "$stage1_perf_csv" "${perf_columns[@]}"
-csv_row "$stage4_vanilla_perf_csv" "${perf_columns[@]}"
-csv_row "$stage4_bolt_perf_csv" "${perf_columns[@]}"
+if [ "$BASIC" != 1 ]; then
+	csv_row "$stage1_perf_csv" "${perf_columns[@]}"
+	csv_row "$stage4_vanilla_perf_csv" "${perf_columns[@]}"
+	csv_row "$stage4_bolt_perf_csv" "${perf_columns[@]}"
+fi
 write_stage_csv
 
 stage_begin prerequisites
@@ -688,15 +693,17 @@ done
 if ! taskset -c "$BENCH_CPU" true >/dev/null 2>&1; then
 	stage_fail prerequisites 2 "BENCH_CPU is unavailable: $BENCH_CPU"
 fi
-if ! taskset -c "$BENCH_CPU" perf stat -e cycles:u -- true \
-	>/dev/null 2>&1; then
-	stage_fail prerequisites 2 'unprivileged perf stat is unavailable'
-fi
-if [ "$FRONTEND_RUNS" -gt 0 ]; then
-	frontend_event_list="$(IFS=,; printf '%s' "${frontend_events[*]}")"
-	if ! taskset -c "$BENCH_CPU" perf stat -e "$frontend_event_list" -- true \
+if [ "$BASIC" != 1 ]; then
+	if ! taskset -c "$BENCH_CPU" perf stat -e cycles:u -- true \
 		>/dev/null 2>&1; then
-		stage_fail prerequisites 2 'frontend perf events are unavailable'
+		stage_fail prerequisites 2 'unprivileged perf stat is unavailable'
+	fi
+	if [ "$FRONTEND_RUNS" -gt 0 ]; then
+		frontend_event_list="$(IFS=,; printf '%s' "${frontend_events[*]}")"
+		if ! taskset -c "$BENCH_CPU" perf stat -e "$frontend_event_list" -- true \
+			>/dev/null 2>&1; then
+			stage_fail prerequisites 2 'frontend perf events are unavailable'
+		fi
 	fi
 fi
 printf 'XXX I harness: Removing prior stage directories...\n' >&2
@@ -997,9 +1004,11 @@ compiler_path[stage4-bolt]="$stage4"/bin/clang++
 compiler_csv[stage1-vanilla]="$stage1_csv"
 compiler_csv[stage4-vanilla]="$stage4_vanilla_csv"
 compiler_csv[stage4-bolt]="$stage4_bolt_csv"
-compiler_perf_csv[stage1-vanilla]="$stage1_perf_csv"
-compiler_perf_csv[stage4-vanilla]="$stage4_vanilla_perf_csv"
-compiler_perf_csv[stage4-bolt]="$stage4_bolt_perf_csv"
+if [ "$BASIC" != 1 ]; then
+	compiler_perf_csv[stage1-vanilla]="$stage1_perf_csv"
+	compiler_perf_csv[stage4-vanilla]="$stage4_vanilla_perf_csv"
+	compiler_perf_csv[stage4-bolt]="$stage4_bolt_perf_csv"
+fi
 
 hyperfine_runner="$command_dir"/hyperfine-runner.sh
 cat >"$hyperfine_runner" <<'EOF'
@@ -1027,12 +1036,14 @@ sha256sum "$HYPERFINE_OUTPUT" >>"$HYPERFINE_HASH_LOG"
 EOF
 chmod +x "$hyperfine_conclude" || exit 2
 
-perf_runner="$command_dir"/perf-runner.sh
-cat >"$perf_runner" <<'EOF'
+if [ "$BASIC" != 1 ]; then
+	perf_runner="$command_dir"/perf-runner.sh
+	cat >"$perf_runner" <<'EOF'
 #!/bin/bash
 exec "$PERF_COMMAND_FILE" >"$PERF_STDOUT_LOG" 2>"$PERF_STDERR_LOG"
 EOF
-chmod +x "$perf_runner" || exit 2
+	chmod +x "$perf_runner" || exit 2
+fi
 
 stage_begin benchmark-commands
 for compiler_stage in stage1-vanilla stage4-vanilla stage4-bolt; do
@@ -1109,66 +1120,34 @@ for spec in "${benchmark_specs[@]}"; do
 done
 stage_pass benchmark-timing
 
-primary_event_list="$(IFS=,; printf '%s' "${primary_events[*]}")"
-stage_begin benchmark-primary
-source_index=0
-for spec in "${benchmark_specs[@]}"; do
-	IFS='|' read -r source source_path target <<<"$spec"
-	absolute_source="$LLVM_PATH"/"$source_path"
-	set_condition_order "$source_index" 2
-	block_order=0
-	for compiler_stage in "${order[@]}"; do
-		block_order="$((block_order + 1))"
-		for ((run = 1; run <= BENCH_RUNS; ++run)); do
-			printf 'XXX I PERF: set=primary source=%s compiler=%s block=%d run=%d\n' \
-				"$source" "$compiler_stage" "$block_order" "$run" >&2
-			run_perf_measurement primary "$source" "$absolute_source" "$target" \
-				"$run" "$block_order" "$compiler_stage" "$primary_event_list"
-			rc=$?
-			case "$rc" in
-			0)
-				;;
-			2)
-				stage_fail benchmark-primary 1 "object hash mismatch for $source"
-				;;
-			*)
-				stage_fail benchmark-primary 1 \
-					"PMU measurement failed for $source/$compiler_stage"
-				;;
-			esac
-		done
-	done
-	source_index="$((source_index + 1))"
-done
-stage_pass benchmark-primary
-
-if [ "$FRONTEND_RUNS" -eq 0 ]; then
-	stage_skip benchmark-frontend 'FRONTEND_RUNS=0'
+if [ "$BASIC" = 1 ]; then
+	stage_skip benchmark-primary 'BASIC=1'
+	stage_skip benchmark-frontend 'BASIC=1'
 else
-	frontend_event_list="$(IFS=,; printf '%s' "${frontend_events[*]}")"
-	stage_begin benchmark-frontend
+	primary_event_list="$(IFS=,; printf '%s' "${primary_events[*]}")"
+	stage_begin benchmark-primary
 	source_index=0
 	for spec in "${benchmark_specs[@]}"; do
 		IFS='|' read -r source source_path target <<<"$spec"
 		absolute_source="$LLVM_PATH"/"$source_path"
-		set_condition_order "$source_index" 3
+		set_condition_order "$source_index" 2
 		block_order=0
 		for compiler_stage in "${order[@]}"; do
 			block_order="$((block_order + 1))"
-			for ((run = 1; run <= FRONTEND_RUNS; ++run)); do
-				printf 'XXX I PERF: set=frontend source=%s compiler=%s block=%d run=%d\n' \
+			for ((run = 1; run <= BENCH_RUNS; ++run)); do
+				printf 'XXX I PERF: set=primary source=%s compiler=%s block=%d run=%d\n' \
 					"$source" "$compiler_stage" "$block_order" "$run" >&2
-				run_perf_measurement frontend "$source" "$absolute_source" "$target" \
-					"$run" "$block_order" "$compiler_stage" "$frontend_event_list"
+				run_perf_measurement primary "$source" "$absolute_source" "$target" \
+					"$run" "$block_order" "$compiler_stage" "$primary_event_list"
 				rc=$?
 				case "$rc" in
 				0)
 					;;
 				2)
-					stage_fail benchmark-frontend 1 "object hash mismatch for $source"
+					stage_fail benchmark-primary 1 "object hash mismatch for $source"
 					;;
 				*)
-					stage_fail benchmark-frontend 1 \
+					stage_fail benchmark-primary 1 \
 						"PMU measurement failed for $source/$compiler_stage"
 					;;
 				esac
@@ -1176,7 +1155,44 @@ else
 		done
 		source_index="$((source_index + 1))"
 	done
-	stage_pass benchmark-frontend
+	stage_pass benchmark-primary
+
+	if [ "$FRONTEND_RUNS" -eq 0 ]; then
+		stage_skip benchmark-frontend 'FRONTEND_RUNS=0'
+	else
+		frontend_event_list="$(IFS=,; printf '%s' "${frontend_events[*]}")"
+		stage_begin benchmark-frontend
+		source_index=0
+		for spec in "${benchmark_specs[@]}"; do
+			IFS='|' read -r source source_path target <<<"$spec"
+			absolute_source="$LLVM_PATH"/"$source_path"
+			set_condition_order "$source_index" 3
+			block_order=0
+			for compiler_stage in "${order[@]}"; do
+				block_order="$((block_order + 1))"
+				for ((run = 1; run <= FRONTEND_RUNS; ++run)); do
+					printf 'XXX I PERF: set=frontend source=%s compiler=%s block=%d run=%d\n' \
+						"$source" "$compiler_stage" "$block_order" "$run" >&2
+					run_perf_measurement frontend "$source" "$absolute_source" "$target" \
+						"$run" "$block_order" "$compiler_stage" "$frontend_event_list"
+					rc=$?
+					case "$rc" in
+					0)
+						;;
+					2)
+						stage_fail benchmark-frontend 1 "object hash mismatch for $source"
+						;;
+					*)
+						stage_fail benchmark-frontend 1 \
+							"PMU measurement failed for $source/$compiler_stage"
+						;;
+					esac
+				done
+			done
+			source_index="$((source_index + 1))"
+		done
+		stage_pass benchmark-frontend
+	fi
 fi
 
 stage_begin output-identity
